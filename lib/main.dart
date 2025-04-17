@@ -2,8 +2,10 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:gbpn_dealer/helpers/call_manager.dart';
 import 'package:gbpn_dealer/services/firebase_options.dart';
 import 'package:gbpn_dealer/services/firebase_service.dart';
+import 'package:gbpn_dealer/services/twilio_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'routing/routes.dart';
 
@@ -30,14 +32,48 @@ Future<bool> _checkFirstLaunch() async {
   return prefs.getBool('isFirstLaunch') ?? true;
 }
 
-class MyApp extends StatelessWidget {
+class MyApp extends StatefulWidget {
   final String initialRoute;
   const MyApp({super.key, required this.initialRoute});
+
+  @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
+
+  final TwilioService _twilioService = TwilioService();
+  final CallManager _callManager = CallManager();
+
+
+  @override
+  void initState() {
+    super.initState();
+    // Initialize CallManager after first frame is rendered
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      // Get BuildContext from the navigator key
+      final context = navigatorKey.currentContext;
+      if (context != null) {
+        _callManager.initialize(context);
+      }
+    });
+  }
+  
+  @override
+  void dispose() {
+    _callManager.dispose();
+    _twilioService.dispose();
+    super.dispose();
+  }
+
+  static final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
+            navigatorKey: navigatorKey,
+
       theme: ThemeData(
         useMaterial3: true,
       ),
@@ -46,7 +82,7 @@ class MyApp extends StatelessWidget {
           child: child ?? const SizedBox.shrink(),
         );
       },
-      initialRoute: initialRoute,
+      initialRoute: widget.initialRoute,
       onGenerateRoute: Routes.generateRoute,
     );
   }

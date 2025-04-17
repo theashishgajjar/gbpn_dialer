@@ -15,6 +15,7 @@ class TwilioService {
   final FlutterSoundPlayer _endCallSoundPlayer = FlutterSoundPlayer();
   bool _isPlaying = false;
   bool _isCallConnected = false;
+  bool get isCallConnected => _isCallConnected;
 
   factory TwilioService() {
     return _instance;
@@ -52,6 +53,10 @@ class TwilioService {
       });
 
       TwilioVoice.instance.setDefaultCallerName("Unknown");
+
+        _isCallConnected = false;
+    _isPlaying = false;
+
 
       if (context.mounted) {
         _setupListeners(context);
@@ -193,7 +198,7 @@ class TwilioService {
 
   /// Answer the Call
   Future<void> answerCall() async {
-    await TwilioVoice.instance.call.answer();
+    await TwilioVoice.instance.call.  answer();
   }
 
   /// Decline the Call
