@@ -1,3 +1,5 @@
+import 'dart:developer';
+
 import 'package:flutter/material.dart';
 import 'dart:async';
 
@@ -24,15 +26,21 @@ class CallManager {
   }
 
   void _registerCallEventListener(BuildContext context) {
-    _callEventsSubscription?.cancel();
-    _callEventsSubscription = _twilioService.callEvents.listen((event) {
-      _handleCallEvent(event, context);
-    });
+    try {
+      _callEventsSubscription?.cancel();
+      log("Registering call event listener");
+      _callEventsSubscription = _twilioService.callEvents.listen((event) {
+        log("Call event received: $event");
+        _handleCallEvent(event, context);
+      });
+    } catch (e) {
+      log("Error registering call event listener: $e");
+    }
   }
 
   void _handleCallEvent(CallEvent event, BuildContext context) {
     switch (event) {
-      case CallEvent.incoming:
+      case CallEvent.ringing:
         _showIncomingCallUI(context);
         break;
       case CallEvent.connected:
@@ -48,19 +56,51 @@ class CallManager {
   }
 
   void _showIncomingCallUI(BuildContext context) {
-    if (_isCallOverlayVisible) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      try {
 
-    final overlay = Overlay.of(context);
-    _callOverlayEntry = OverlayEntry(
-      builder: (context) => IncomingCallOverlay(
-        callerName: "GBPN Dialer",
-        onAccept: () => _acceptCall(context),
-        onDecline: _declineCall,
-      ),
-    );
+        if (_isCallOverlayVisible) {
+          log("Call overlay is already visible. Ignoring new call event.");
+          return;
+        }
 
-    overlay.insert(_callOverlayEntry!);
-    _isCallOverlayVisible = true;
+        final overlay = Overlay.of(context);
+        if (overlay == null) {
+          throw Exception("Overlay is null");
+        }
+        log("Overlay retrieved: $overlay");
+
+        try {
+          _callOverlayEntry = OverlayEntry(
+            builder: (context) {
+              log("Building IncomingCallOverlay widget.");
+              return IncomingCallOverlay(
+                callerName: "GBPN Dialer",
+                onAccept: () {
+                  log("Call accepted by user.");
+                  _acceptCall(context);
+                },
+                onDecline: () {
+                  log("Call declined by user.");
+                  _declineCall();
+                },
+              );
+            },
+          );
+
+          log("Inserting call overlay into overlay stack.");
+          overlay.insert(_callOverlayEntry!);
+          _isCallOverlayVisible = true;
+          log("Call overlay is now visible.");
+        } catch (e) {
+          log("Error creating or inserting overlay entry: $e");
+          _isCallOverlayVisible = false;
+          _callOverlayEntry = null;
+        }
+      } catch (e) {
+        log("Error showing incoming call UI: $e");
+      }
+    });
   }
 
   void _handleCallConnected(BuildContext context) {
